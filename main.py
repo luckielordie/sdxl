@@ -54,11 +54,12 @@ def main():
     graphics_device = torch.device(args.device)
     torch_dtype = torch.float16 if args.dtype == "float16" else torch.float32
 
-    base_pipeline, refiner_pipeline, compel = setup_pipelines(args.model_id, graphics_device, torch_dtype)
+    base_pipeline, refiner_pipeline, upscaler_pipeline, compel = setup_pipelines(args.model_id, graphics_device, torch_dtype)
 
     generate(
         base_pipeline=base_pipeline,
         refiner_pipeline=refiner_pipeline,
+        upscaler_pipeline=upscaler_pipeline,
         compel=compel,
         prompt=args.prompt,
         negative_prompt=args.negative_prompt,

@@ -1,5 +1,6 @@
 import math
 import argparse
+import re
 from dataclasses import dataclass
 
 @dataclass(frozen=True)
@@ -15,6 +16,25 @@ GUIDANCE_PRESETS = {
     "high": 11.0,
     "strict": 12.5,   # Very strong prompt adherence
 }
+
+def clean_compel_syntax(prompt: str) -> str:
+    """
+    Removes or simplifies Compel-specific syntax from a prompt string
+    to make it compatible with standard pipelines.
+    """
+    # Handle [from:to:when] syntax by taking the 'to' part.
+    prompt = re.sub(r"\[[^\]:]*:([^\]:]*):[^\]]*\]", r"\1", prompt)
+
+    # Handle (word:weight) syntax by just taking the word.
+    prompt = re.sub(r"\(([^:\)]+):[0-9.]+\)", r"\1", prompt)
+
+    # Remove all remaining weighting symbols like (), +, -
+    prompt = re.sub(r"[\(\)\+\-]+", " ", prompt)
+
+    # Finally, clean up any extra whitespace.
+    prompt = re.sub(r" +", " ", prompt).strip()
+
+    return prompt
 
 def guidance_type(value: str) -> float:
     """Custom type for argparse to handle both preset strings and float values."""

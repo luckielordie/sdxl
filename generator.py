@@ -1,16 +1,16 @@
 import torch
-from diffusers import StableDiffusionXLPipeline, StableDiffusionXLImg2ImgPipeline
+from diffusers import StableDiffusionXLPipeline, StableDiffusionXLImg2ImgPipeline, StableDiffusionUpscalePipeline
 from compel import Compel, ReturnedEmbeddingsType
 from PIL import Image
 import os
 import time
-from utils import Resolution
+from utils import Resolution, clean_compel_syntax
 
 def setup_pipelines(
     model_id: str, 
     graphics_device: torch.device, 
     torch_dtype: torch.dtype
-) -> tuple[StableDiffusionXLPipeline, StableDiffusionXLImg2ImgPipeline, Compel]:
+) -> tuple[StableDiffusionXLPipeline, StableDiffusionXLImg2ImgPipeline, StableDiffusionUpscalePipeline, Compel]:
     """Sets up and loads the diffusion pipelines and Compel processor."""
     if torch_dtype == torch.float32:
         torch.set_float32_matmul_precision('high')
@@ -21,25 +21,38 @@ def setup_pipelines(
     base_pipeline.enable_xformers_memory_efficient_attention()
     base_pipeline.to(graphics_device, silence_dtype_warnings=True)
 
-    print("🚀 Compiling the UNet for speed...")
+    print("🚀 Compiling the diffusion unet for speed...")
     base_pipeline.unet = torch.compile(base_pipeline.unet, mode="reduce-overhead", fullgraph=True)
 
     print("🔧 Loading refiner pipeline...")
     refiner_pipeline = StableDiffusionXLImg2ImgPipeline(**base_pipeline.components)
     refiner_pipeline.to(graphics_device, silence_dtype_warnings=True)
 
-    print("🧠 Initializing Compel for prompt processing...")
+    print("🧠 Initializing compel for prompt processing...")
     compel = Compel(
         tokenizer=[base_pipeline.tokenizer, base_pipeline.tokenizer_2],
         text_encoder=[base_pipeline.text_encoder, base_pipeline.text_encoder_2],
         returned_embeddings_type=ReturnedEmbeddingsType.PENULTIMATE_HIDDEN_STATES_NON_NORMALIZED,
         requires_pooled=[False, True])
         
-    return base_pipeline, refiner_pipeline, compel
+    print("🔧 Loading upscaler pipeline...")
+    upscaler_pipeline = StableDiffusionUpscalePipeline.from_pretrained(
+        "stabilityai/stable-diffusion-x4-upscaler",
+        torch_dtype=torch_dtype,
+        use_safetensors=True
+    )
+    upscaler_pipeline.enable_xformers_memory_efficient_attention()
+    upscaler_pipeline.to(graphics_device, silence_dtype_warnings=True)
+
+    print("🚀 Compiling the upscaler unet for speed...")
+    upscaler_pipeline.unet = torch.compile(upscaler_pipeline.unet, mode="reduce-overhead", fullgraph=True)
+
+    return base_pipeline, refiner_pipeline, upscaler_pipeline, compel
 
 def generate(
     base_pipeline: StableDiffusionXLPipeline,
     refiner_pipeline: StableDiffusionXLImg2ImgPipeline,
+    upscaler_pipeline: StableDiffusionUpscalePipeline,
     compel: Compel,
     prompt: str,
     negative_prompt: str,
@@ -61,6 +74,10 @@ def generate(
 
     prompt_embeds, pooled_prompt_embeds = prompt_embeds.to(graphics_device), pooled_prompt_embeds.to(graphics_device)
     negative_prompt_embeds, negative_pooled_prompt_embeds = negative_prompt_embeds.to(graphics_device), negative_pooled_prompt_embeds.to(graphics_device)
+
+    print("🧼 Cleaning prompts for the upscaler...")
+    upscaler_prompt = clean_compel_syntax(prompt)
+    upscaler_negative_prompt = clean_compel_syntax(negative_prompt)
 
     print(f"🌱 Using initial seed: {initial_seed}")
 
@@ -86,10 +103,18 @@ def generate(
                 negative_prompt_embeds=negative_prompt_embeds, negative_pooled_prompt_embeds=negative_pooled_prompt_embeds,
                 guidance_scale=guidance_scale, num_inference_steps=30, strength=0.25,
                 image=base_image_latents, generator=generator
+            ).images[0]          
+
+            print(f"📈 Upscaling image with AI upscaler...")
+            final_image = upscaler_pipeline(
+                prompt=upscaler_prompt,
+                negative_prompt=upscaler_negative_prompt,
+                image=refined_image,
+                num_inference_steps=20,
             ).images[0]
 
         final_res_tuple = (final_resolution.width, final_resolution.height)
-        print(f"📈 Upscaling and saving final image to {final_res_tuple[0]}x{final_res_tuple[1]}...")
+        print(f"💾 Resizing to final dimensions and saving: {final_res_tuple[0]}x{final_res_tuple[1]}...")
         final_image = refined_image.resize(final_res_tuple, Image.LANCZOS)
         
         timestamp = int(time.time())
