@@ -1,0 +1,21 @@
+[project]
+name = "sdxl"
+version = "0.1.0"
+
+[[tool.poetry.source]]
+name = "pytorch_cuda"
+url = "https://download.pytorch.org/whl/cu121"
+priority = "explicit"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+torch = { version = "*", source = "pytorch_cuda" }
+torchvision = { version = "*", source = "pytorch_cuda" }
+torchaudio = { version = "*", source = "pytorch_cuda" }
+
+diffusers = "*"
+transformers = "*"
+accelerate = "*"
+compel = "*"
+Pillow = "*"
+xformers = "*"

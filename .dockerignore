@@ -1,0 +1,6 @@
+.venv/
+generated_images/
+__pycache__/
+README.md
+.git/
+.gitignore
