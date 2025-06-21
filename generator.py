@@ -54,7 +54,7 @@ def generate(
     graphics_device = base_pipeline.device
     os.makedirs(output_dir, exist_ok=True)
     
-    print(f"ℹ️ Using Guidance Scale: {guidance_scale}")
+    print(f"ℹ️  Using Guidance Scale: {guidance_scale}")
     print("▶️  Processing and embedding prompts...")
     prompt_embeds, pooled_prompt_embeds = compel(prompt)
     negative_prompt_embeds, negative_pooled_prompt_embeds = compel(negative_prompt)
