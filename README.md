@@ -1,6 +1,3 @@
-Of course. Here is the raw markdown for the complete `README.md` file. You can copy and paste this directly into your file.
-
-````markdown
 # Stable Diffusion XL Image Generator
 
 This is a powerful and user-friendly command-line tool for generating high-quality images using Stable Diffusion XL. It is designed for both ease of use and advanced control, featuring optional AI upscaling, intelligent memory management, and a modular codebase.
