@@ -61,6 +61,7 @@ def setup_pipelines(
         if upscaler_pipeline:
             # Leave the upscaler on the CPU for now
             upscaler_pipeline.to('cpu', silence_dtype_warnings=True)
+            upscaler_pipeline.enable_attention_slicing()
 
     print("🧠 Initializing Compel for prompt processing...")
     compel = Compel(
