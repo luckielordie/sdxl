@@ -69,6 +69,9 @@ def setup_pipelines(
             upscaler_pipeline.to(graphics_device)
         
         base_pipeline.unet = torch.compile(base_pipeline.unet, mode="reduce-overhead", fullgraph=True)
+        refiner_pipeline.unet = torch.compile(refiner_pipeline.unet, mode="reduce-overhead", fullgraph=True)
+        if upscaler_pipeline:
+            upscaler_pipeline.unet = torch.compile(upscaler_pipeline.unet, mode="reduce-overhead", fullgraph=True)
 
     print("🧠 Initializing Compel for prompt processing...")
     compel = Compel(
