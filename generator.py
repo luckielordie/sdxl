@@ -50,11 +50,15 @@ def setup_pipelines(
     if final_memory_mode == 'high':
         print("🚀 Moving all models to GPU and compiling for maximum speed...")
         base_pipeline.to(graphics_device, silence_dtype_warnings=True)
+        base_pipeline.unet = torch.compile(base_pipeline.unet, mode="reduce-overhead", fullgraph=True)
         refiner_pipeline.to(graphics_device, silence_dtype_warnings=True)
+        refiner_pipeline.unet = torch.compile(refiner_pipeline.unet, mode="reduce-overhead", fullgraph=True)
+        
         if upscaler_pipeline:
             upscaler_pipeline.to(graphics_device, silence_dtype_warnings=True)
-        base_pipeline.unet = torch.compile(base_pipeline.unet, mode="reduce-overhead", fullgraph=True)
-    else: # 'low' memory mode (the new middle road)
+            upscaler_pipeline.unet = torch.compile(upscaler_pipeline.unet, mode="reduce-overhead", fullgraph=True)
+        
+    else: # 'low' memory mode
         print("💾 Using memory-efficient mode. Moving only SDXL pipelines to GPU initially.")
         base_pipeline.to(graphics_device, silence_dtype_warnings=True)
         refiner_pipeline.to(graphics_device, silence_dtype_warnings=True)
