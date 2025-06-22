@@ -15,63 +15,52 @@ def setup_pipelines(
 ) -> tuple[StableDiffusionXLPipeline, StableDiffusionXLImg2ImgPipeline, Optional[StableDiffusionUpscalePipeline], Compel]:
     """Sets up pipelines based on the selected memory mode and upscaler toggle."""
     
-    # Check VRAM if in auto mode
-    use_offloading = False
+    # Determine the strategy based on memory mode
+    final_memory_mode = memory_mode
     if memory_mode == 'auto':
         if torch.cuda.is_available():
             vram_gb = torch.cuda.get_device_properties(0).total_memory / (1024**3)
             print(f"ℹ️  Detected {vram_gb:.2f} GB of VRAM.")
-            if vram_gb < 20:
-                print("⚠️  Low VRAM detected (< 20GB). Forcing CPU offloading.")
-                use_offloading = True
-            else:
-                print("✅ High VRAM detected (>= 20GB). Using GPU for all models.")
+            final_memory_mode = 'low' if vram_gb < 20 else 'high'
+            print(f"✅ Auto-selected '{final_memory_mode}' memory mode.")
         else:
-            print("⚠️  No CUDA device detected. Forcing CPU offloading.")
-            use_offloading = True
-
-    elif memory_mode == 'low':
-        print("ℹ️  Forcing memory-saving CPU offloading mode.")
-        use_offloading = True
-    else: # high mode
-        print("ℹ️  Forcing high-performance GPU mode.")
-        use_offloading = False
-
+            print("⚠️  No CUDA device detected, defaulting to 'low' memory mode (CPU).")
+            final_memory_mode = 'low'
+    
     if torch_dtype == torch.float32:
         torch.set_float32_matmul_precision('high')
 
-    # Common pipeline loading steps
-    print("🔧 Loading base diffusion pipeline...")
+    # Load all pipelines to CPU first
+    print("🔧 Loading base diffusion pipeline to CPU...")
     base_pipeline = StableDiffusionXLPipeline.from_pretrained(
         model_id, torch_dtype=torch_dtype, use_safetensors=True, add_watermarker=False)
     
-    print("🔧 Loading refiner pipeline...")
+    print("🔧 Loading refiner pipeline to CPU...")
     refiner_pipeline = StableDiffusionXLImg2ImgPipeline(**base_pipeline.components)
     
     upscaler_pipeline = None
     if use_upscaler:
-        print("🔧 Loading upscaler pipeline...")
+        print("🔧 Loading upscaler pipeline to CPU...")
         upscaler_pipeline = StableDiffusionUpscalePipeline.from_pretrained(
             "stabilityai/stable-diffusion-x4-upscaler", torch_dtype=torch_dtype, use_safetensors=True)
 
-    if use_offloading:
-        print("💾 Enabling CPU Offloading for all models...")
-        base_pipeline.enable_model_cpu_offload()
-        refiner_pipeline.enable_model_cpu_offload()
-        if upscaler_pipeline:
-            upscaler_pipeline.enable_model_cpu_offload()
-    else:
+    # Now, move pipelines to GPU based on the chosen strategy
+    graphics_device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    if final_memory_mode == 'high':
         print("🚀 Moving all models to GPU and compiling for maximum speed...")
-        graphics_device = torch.device("cuda")
         base_pipeline.to(graphics_device)
         refiner_pipeline.to(graphics_device)
         if upscaler_pipeline:
             upscaler_pipeline.to(graphics_device)
-        
         base_pipeline.unet = torch.compile(base_pipeline.unet, mode="reduce-overhead", fullgraph=True)
-        refiner_pipeline.unet = torch.compile(refiner_pipeline.unet, mode="reduce-overhead", fullgraph=True)
+    else: # 'low' memory mode (the new middle road)
+        print("💾 Using memory-efficient mode. Moving only SDXL pipelines to GPU initially.")
+        base_pipeline.to(graphics_device)
+        refiner_pipeline.to(graphics_device)
         if upscaler_pipeline:
-            upscaler_pipeline.unet = torch.compile(upscaler_pipeline.unet, mode="reduce-overhead", fullgraph=True)
+            # Leave the upscaler on the CPU for now
+            upscaler_pipeline.to('cpu')
 
     print("🧠 Initializing Compel for prompt processing...")
     compel = Compel(
@@ -100,10 +89,20 @@ def generate(
     """Generates images based on the provided prompts and parameters."""
     os.makedirs(output_dir, exist_ok=True)
     
+    # Determine if we need to do the memory-swap based on whether the upscaler is on the CPU
+    is_low_mem_upscale = upscaler_pipeline is not None and upscaler_pipeline.device.type == 'cpu'
+    
+    graphics_device = base_pipeline.device
+    
     print(f"ℹ️  Using Guidance Scale: {guidance_scale}")
     print("▶️  Processing and embedding prompts for SDXL...")
     prompt_embeds, pooled_prompt_embeds = compel(prompt)
     negative_prompt_embeds, negative_pooled_prompt_embeds = compel(negative_prompt)
+    
+    prompt_embeds = prompt_embeds.to(graphics_device)
+    pooled_prompt_embeds = pooled_prompt_embeds.to(graphics_device)
+    negative_prompt_embeds = negative_prompt_embeds.to(graphics_device)
+    negative_pooled_prompt_embeds = negative_pooled_prompt_embeds.to(graphics_device)
 
     print(f"🌱 Using initial seed: {initial_seed}")
 
@@ -132,6 +131,14 @@ def generate(
             ).images[0]
 
             if upscaler_pipeline:
+                if is_low_mem_upscale:
+                    print("💾 Moving SDXL pipelines to CPU to make space for upscaler...")
+                    base_pipeline.to('cpu')
+                    refiner_pipeline.to('cpu')
+                    torch.cuda.empty_cache()
+                    print("🚀 Moving upscaler to GPU...")
+                    upscaler_pipeline.to(graphics_device)
+
                 print("🧼 Cleaning prompts for the upscaler...")
                 upscaler_prompt = clean_compel_syntax(prompt)
                 upscaler_negative_prompt = clean_compel_syntax(negative_prompt)
@@ -144,6 +151,14 @@ def generate(
                     num_inference_steps=20,
                     generator=generator
                 ).images[0]
+
+                if is_low_mem_upscale:
+                    print("💾 Moving upscaler back to CPU...")
+                    upscaler_pipeline.to('cpu')
+                    torch.cuda.empty_cache()
+                    print("🚀 Moving SDXL pipelines back to GPU for next image (if any)...")
+                    base_pipeline.to(graphics_device)
+                    refiner_pipeline.to(graphics_device)
             else:
                 print("ℹ️  Upscaler disabled. Using image from refiner.")
                 final_image = refined_image
