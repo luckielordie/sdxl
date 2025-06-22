@@ -1,7 +1,7 @@
 import math
 import argparse
-import re
 from dataclasses import dataclass
+import re
 
 @dataclass(frozen=True)
 class Resolution:
@@ -16,25 +16,6 @@ GUIDANCE_PRESETS = {
     "high": 11.0,
     "strict": 12.5,   # Very strong prompt adherence
 }
-
-def clean_compel_syntax(prompt: str) -> str:
-    """
-    Removes or simplifies Compel-specific syntax from a prompt string
-    to make it compatible with standard pipelines.
-    """
-    # Handle [from:to:when] syntax by taking the 'to' part.
-    prompt = re.sub(r"\[[^\]:]*:([^\]:]*):[^\]]*\]", r"\1", prompt)
-
-    # Handle (word:weight) syntax by just taking the word.
-    prompt = re.sub(r"\(([^:\)]+):[0-9.]+\)", r"\1", prompt)
-
-    # Remove all remaining weighting symbols like (), +, -
-    prompt = re.sub(r"[\(\)\+\-]+", " ", prompt)
-
-    # Finally, clean up any extra whitespace.
-    prompt = re.sub(r" +", " ", prompt).strip()
-
-    return prompt
 
 def guidance_type(value: str) -> float:
     """Custom type for argparse to handle both preset strings and float values."""
@@ -71,3 +52,22 @@ def calculate_generation_dims(
     print(f"🤖 Calculated generation dimensions (closest to {target_area/1e6:.2f}MP): {calculated_res.width}x{calculated_res.height}")
     
     return calculated_res
+
+def clean_compel_syntax(prompt: str) -> str:
+    """
+    Removes or simplifies Compel-specific syntax from a prompt string
+    to make it compatible with standard pipelines.
+    """
+    # Handle [from:to:when] syntax by taking the 'to' part.
+    prompt = re.sub(r"\[[^\]:]*:([^\]:]*):[^\]]*\]", r"\1", prompt)
+
+    # Handle (word:weight) syntax by just taking the word.
+    prompt = re.sub(r"\(([^:\)]+):[0-9.]+\)", r"\1", prompt)
+
+    # Remove all remaining weighting symbols like (), +, -
+    prompt = re.sub(r"[\(\)\+\-]+", " ", prompt)
+
+    # Finally, clean up any extra whitespace.
+    prompt = re.sub(r" +", " ", prompt).strip()
+
+    return prompt

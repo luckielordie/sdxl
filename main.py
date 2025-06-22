@@ -13,23 +13,33 @@ def main():
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
 
+    # Hardware & Model Settings
     parser.add_argument("--model_id", type=str, default="stabilityai/stable-diffusion-xl-base-1.0", help="Hugging Face model ID.")
-    parser.add_argument("--device", type=str, default="cuda", help="Device to run on ('cuda', 'cpu').")
     parser.add_argument("--dtype", type=str, default="float16", help="Torch dtype ('float16' or 'float32').")
+    parser.add_argument(
+        "--memory_mode", type=str, choices=['auto', 'high', 'low'], default='auto',
+        help="Memory usage mode: 'auto' detects VRAM, 'high' forces VRAM for max speed, 'low' forces CPU offload for safety."
+    )
+    parser.add_argument("--use_upscaler", action='store_true', help="Enable the AI upscaler pipeline. Omit for lower VRAM usage.")
 
+
+    # Prompt Settings
     parser.add_argument("--prompt", type=str, required=True, help="Positive prompt.")
     parser.add_argument("--negative_prompt", type=str, default="", help="Negative prompt.")
-    parser.add_argument("--num_images", type=int, default=1, help="Number of images to generate.")
     
+    # Generation Settings
+    parser.add_argument("--num_images", type=int, default=1, help="Number of images to generate.")
     parser.add_argument(
         "--guidance", type=guidance_type, default="medium",
         help=f"Guidance scale. Float or preset: {', '.join(GUIDANCE_PRESETS.keys())}"
     )
     parser.add_argument("--seed", type=int, default=-1, help="Initial seed. -1 for random.")
     
+    # Image Dimension Settings
     parser.add_argument("--width", type=int, default=1920, help="Final width of the output image.")
     parser.add_argument("--height", type=int, default=1080, help="Final height of the output image.")
 
+    # Output Settings
     parser.add_argument(
         "--output_dir", type=str, default=None, 
         help="Subdirectory within 'generated_images' to save outputs. Defaults to a timestamped folder."
@@ -50,11 +60,12 @@ def main():
     gen_res = calculate_generation_dims(final_res)
     
     initial_seed = args.seed if args.seed != -1 else random.randint(0, 2**32 - 1)
-
-    graphics_device = torch.device(args.device)
     torch_dtype = torch.float16 if args.dtype == "float16" else torch.float32
 
-    base_pipeline, refiner_pipeline, upscaler_pipeline, compel = setup_pipelines(args.model_id, graphics_device, torch_dtype)
+    # Let setup_pipelines handle device placement based on memory_mode
+    base_pipeline, refiner_pipeline, upscaler_pipeline, compel = setup_pipelines(
+        args.model_id, torch_dtype, args.memory_mode, args.use_upscaler
+    )
 
     generate(
         base_pipeline=base_pipeline,
