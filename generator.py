@@ -49,18 +49,18 @@ def setup_pipelines(
 
     if final_memory_mode == 'high':
         print("🚀 Moving all models to GPU and compiling for maximum speed...")
-        base_pipeline.to(graphics_device)
-        refiner_pipeline.to(graphics_device)
+        base_pipeline.to(graphics_device, silence_dtype_warnings=True)
+        refiner_pipeline.to(graphics_device, silence_dtype_warnings=True)
         if upscaler_pipeline:
-            upscaler_pipeline.to(graphics_device)
+            upscaler_pipeline.to(graphics_device, silence_dtype_warnings=True)
         base_pipeline.unet = torch.compile(base_pipeline.unet, mode="reduce-overhead", fullgraph=True)
     else: # 'low' memory mode (the new middle road)
         print("💾 Using memory-efficient mode. Moving only SDXL pipelines to GPU initially.")
-        base_pipeline.to(graphics_device)
-        refiner_pipeline.to(graphics_device)
+        base_pipeline.to(graphics_device, silence_dtype_warnings=True)
+        refiner_pipeline.to(graphics_device, silence_dtype_warnings=True)
         if upscaler_pipeline:
             # Leave the upscaler on the CPU for now
-            upscaler_pipeline.to('cpu')
+            upscaler_pipeline.to('cpu', silence_dtype_warnings=True)
 
     print("🧠 Initializing Compel for prompt processing...")
     compel = Compel(
@@ -133,11 +133,11 @@ def generate(
             if upscaler_pipeline:
                 if is_low_mem_upscale:
                     print("💾 Moving SDXL pipelines to CPU to make space for upscaler...")
-                    base_pipeline.to('cpu')
-                    refiner_pipeline.to('cpu')
+                    base_pipeline.to('cpu', silence_dtype_warnings=True)
+                    refiner_pipeline.to('cpu', silence_dtype_warnings=True)
                     torch.cuda.empty_cache()
                     print("🚀 Moving upscaler to GPU...")
-                    upscaler_pipeline.to(graphics_device)
+                    upscaler_pipeline.to(graphics_device, silence_dtype_warnings=True)
 
                 print("🧼 Cleaning prompts for the upscaler...")
                 upscaler_prompt = clean_compel_syntax(prompt)
@@ -154,11 +154,11 @@ def generate(
 
                 if is_low_mem_upscale:
                     print("💾 Moving upscaler back to CPU...")
-                    upscaler_pipeline.to('cpu')
+                    upscaler_pipeline.to('cpu', silence_dtype_warnings=True)
                     torch.cuda.empty_cache()
                     print("🚀 Moving SDXL pipelines back to GPU for next image (if any)...")
-                    base_pipeline.to(graphics_device)
-                    refiner_pipeline.to(graphics_device)
+                    base_pipeline.to(graphics_device, silence_dtype_warnings=True)
+                    refiner_pipeline.to(graphics_device, silence_dtype_warnings=True)
             else:
                 print("ℹ️  Upscaler disabled. Using image from refiner.")
                 final_image = refined_image
