@@ -4,7 +4,7 @@ import random
 import os
 import time
 
-from utils import Resolution, calculate_generation_dims, guidance_type, GUIDANCE_PRESETS
+from utils import Resolution, calculate_generation_dims, guidance_type, GUIDANCE_PRESETS, load_image
 from generator import setup_pipelines, generate, generate_from_image
 
 def main():
@@ -33,8 +33,8 @@ def main():
     parser.add_argument("--strength", type=float, default=0.8, help="Strength for Img2Img generation.")
     
     # Image Dimension Settings
-    parser.add_argument("--width", type=int, default=1920, help="Final width of the output image.")
-    parser.add_argument("--height", type=int, default=1080, help="Final height of the output image.")
+    parser.add_argument("--width", type=int, default=None, help="Final width. Defaults to source image width in img2img mode, or 1920 for text2img.")
+    parser.add_argument("--height", type=int, default=None, help="Final height. Defaults to source image height in img2img mode, or 1080 for text2img.")
 
     # Output Settings
     parser.add_argument(
@@ -53,7 +53,19 @@ def main():
     
     print(f"💾 Output will be saved to: {args.output_dir}")
 
-    final_res = Resolution(width=args.width, height=args.height)
+    source_image = None
+    if args.mode == 'img2img':
+        source_image = load_image(args.image_path)
+        if args.width is None or args.height is None:
+            print("↔️ Using source image dimensions for output.")
+            final_res = Resolution(width=source_image.width, height=source_image.height)
+        else:
+            final_res = Resolution(width=args.width, height=args.height)
+    else:  # text2img
+        width = args.width if args.width is not None else 1920
+        height = args.height if args.height is not None else 1080
+        final_res = Resolution(width=width, height=height)
+
     gen_res = calculate_generation_dims(final_res)
     
     initial_seed = args.seed if args.seed != -1 else random.randint(0, 2**32 - 1)
@@ -90,7 +102,7 @@ def main():
             gen_resolution=gen_res,
             final_resolution=final_res,
             output_dir=args.output_dir,
-            image_path=args.image_path,
+            source_image=source_image,
             strength=args.strength
         )
 

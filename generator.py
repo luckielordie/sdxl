@@ -4,7 +4,7 @@ from compel import Compel, ReturnedEmbeddingsType
 from PIL import Image
 import os
 import time
-from utils import Resolution, load_image
+from utils import Resolution
 
 def setup_pipelines(
     model_id: str,
@@ -111,7 +111,7 @@ def generate_from_image(
     final_resolution: Resolution,
     initial_seed: int,
     output_dir: str,
-    image_path: str,
+    source_image: Image.Image,
     strength: float
 ):
     """Generates images from a source image with manual pipeline management for memory efficiency."""
@@ -125,7 +125,7 @@ def generate_from_image(
 
     print(f"🌱 Using initial seed: {initial_seed}")
 
-    source_image = load_image(image_path).resize((gen_resolution.width, gen_resolution.height))
+    resized_source_image = source_image.resize((gen_resolution.width, gen_resolution.height))
 
     for i in range(num_images):
         print(f"\n--- 📸 Generating image {i + 1} of {num_images} ---")
@@ -141,7 +141,7 @@ def generate_from_image(
                 negative_prompt_embeds=negative_prompt_embeds,
                 negative_pooled_prompt_embeds=negative_pooled_prompt_embeds,
                 guidance_scale=guidance_scale, num_inference_steps=30, strength=strength,
-                image=source_image, generator=generator
+                image=resized_source_image, generator=generator
             ).images[0]
 
         final_res_tuple = (final_resolution.width, final_resolution.height)
