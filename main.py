@@ -9,19 +9,13 @@ from generator import setup_pipelines, generate
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Generate images using Stable Diffusion XL.",
+        description="Generate images using Stable Diffusion XL with an integrated latent upscaler.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
 
     # Hardware & Model Settings
     parser.add_argument("--model_id", type=str, default="stabilityai/stable-diffusion-xl-base-1.0", help="Hugging Face model ID.")
     parser.add_argument("--dtype", type=str, default="float16", help="Torch dtype ('float16' or 'float32').")
-    parser.add_argument(
-        "--memory_mode", type=str, choices=['auto', 'high', 'low'], default='auto',
-        help="Memory usage mode: 'auto' detects VRAM, 'high' forces VRAM for max speed, 'low' forces CPU offload for safety."
-    )
-    parser.add_argument("--use_upscaler", action='store_true', help="Enable the AI upscaler pipeline. Omit for lower VRAM usage.")
-
 
     # Prompt Settings
     parser.add_argument("--prompt", type=str, required=True, help="Positive prompt.")
@@ -62,15 +56,13 @@ def main():
     initial_seed = args.seed if args.seed != -1 else random.randint(0, 2**32 - 1)
     torch_dtype = torch.float16 if args.dtype == "float16" else torch.float32
 
-    # Let setup_pipelines handle device placement based on memory_mode
-    base_pipeline, refiner_pipeline, upscaler_pipeline, compel = setup_pipelines(
-        args.model_id, torch_dtype, args.memory_mode, args.use_upscaler
+    base_pipeline, refiner_pipeline, compel = setup_pipelines(
+        args.model_id, torch_dtype
     )
 
     generate(
         base_pipeline=base_pipeline,
         refiner_pipeline=refiner_pipeline,
-        upscaler_pipeline=upscaler_pipeline,
         compel=compel,
         prompt=args.prompt,
         negative_prompt=args.negative_prompt,

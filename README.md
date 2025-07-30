@@ -1,11 +1,11 @@
 # Stable Diffusion XL Image Generator
 
-This is a powerful and user-friendly command-line tool for generating high-quality images using Stable Diffusion XL. It is designed for both ease of use and advanced control, featuring optional AI upscaling, intelligent memory management, and a modular codebase.
+This is a powerful and user-friendly command-line tool for generating high-quality images using Stable Diffusion XL. It is designed for both ease of use and advanced control, featuring integrated AI upscaling, intelligent memory management, and a modular codebase.
 
 ## Features
 
-- **High-Quality Generation**: Utilizes the base SDXL model followed by a refiner for detailed, high-resolution images.
-- **Optional AI Upscaling**: Features an integrated `stabilityai/stable-diffusion-x4-upscaler` pipeline that can be toggled on to intelligently increase image resolution and detail, going beyond a simple resize.
+- **High-Quality Generation**: Utilizes the base SDXL model, a latent upscaler, and a refiner for detailed, high-resolution images.
+- **Integrated AI Upscaling**: Uses `stabilityai/sd-x2-latent-upscaler` to intelligently increase image resolution and detail.
 - **Intelligent Memory Management**: Automatically detects your system's VRAM and selects the best operational mode. On high-VRAM systems, it loads all models to the GPU for maximum speed. on low-VRAM systems, it uses CPU offloading to ensure the script can run without crashing.
 - **Flexible Guidance Control**: Use simple presets (`low`, `medium`, `high`) or specify an exact float value for precise control over prompt adherence.
 - **Reproducibility**: Set a specific seed to generate the same image again, or let the script choose a random one.
@@ -32,22 +32,11 @@ All commands are run from your terminal in the project's root directory. The mai
 
 ### Basic Example
 
-This command will run the base and refiner pipelines in the most memory-efficient way.
+This command will run the full pipeline in the most memory-efficient way.
 
 ```bash
 python main.py --prompt "a dramatic photo of a majestic lion in the savanna, cinematic lighting, 8k"
 ````
-
-### High-Quality Example with AI Upscaler
-
-This command enables the AI upscaler for the best possible output quality. It's recommended to run this on a machine with sufficient VRAM or with the `auto` or `low` memory modes.
-
-```bash
-python main.py \
-    --prompt "an astronaut lounging in a tropical resort on mars, cinematic, 4k" \
-    --guidance high \
-    --use_upscaler
-```
 
 ### Command-Line Arguments
 
@@ -56,7 +45,6 @@ python main.py \
 | `--prompt` | `string` | **(Required)** | The positive prompt describing the image you want. |
 | `--negative_prompt` | `string` | `""` | The negative prompt, describing what to avoid. |
 | `--model_id` | `string` | `stabilityai/stable-diffusion-xl-base-1.0`| The Hugging Face model ID for the base SDXL model. |
-| `--use_upscaler` | `flag` | `False` | Add this flag to enable the AI upscaler pipeline for higher quality. |
 | `--memory_mode` | `string` | `auto` | Memory mode: `auto`, `high` (VRAM-only), `low` (CPU offload). |
 | `--guidance` | `preset/float` | `medium` | Prompt adherence. Can be a float (`8.2`) or a preset: `artistic`, `low`, `medium`, `high`, `strict`. |
 | `--num_images` | `int` | `1` | The number of images to generate in a single run. |
@@ -68,7 +56,7 @@ python main.py \
 
 ### Advanced Examples
 
-**1. Generate a portrait for a phone screen with the AI upscaler:**
+**1. Generate a portrait for a phone screen:**
 
 ```bash
 python main.py \
@@ -76,15 +64,14 @@ python main.py \
     --negative_prompt "blurry, ugly, deformed, cartoon" \
     --width 1080 \
     --height 1920 \
-    --guidance high \
-    --use_upscaler
+    --guidance high
 ```
 
-*The script will generate at an optimal base resolution, refine the image, and then use the AI upscaler for the final dimensions.*
+*The script will generate at an optimal base resolution, upscale the latents, refine the image, and then resize to the final dimensions.*
 
 **2. Generate 5 images with a specific seed, forcing high-performance mode:**
 
-This is for machines with plenty of VRAM (e.g., \>20GB).
+This is for machines with plenty of VRAM (e.g., >12GB).
 
 ```bash
 python main.py \
@@ -92,7 +79,6 @@ python main.py \
     --num_images 5 \
     --seed 42 \
     --output_dir "winter_cabins" \
-    --use_upscaler \
     --memory_mode high
 ```
 

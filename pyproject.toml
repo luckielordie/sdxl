@@ -1,6 +1,11 @@
-[project]
+[tool.poetry]
 name = "sdxl"
 version = "0.1.0"
+description = "A powerful and user-friendly command-line tool for generating high-quality images using Stable Diffusion XL."
+authors = []
+license = "MIT"
+readme = "README.md"
+package-mode = false
 
 [[tool.poetry.source]]
 name = "pytorch_cuda"
@@ -12,10 +17,13 @@ python = "^3.10"
 torch = { version = "*", source = "pytorch_cuda" }
 torchvision = { version = "*", source = "pytorch_cuda" }
 torchaudio = { version = "*", source = "pytorch_cuda" }
-
 diffusers = "*"
 transformers = "*"
 accelerate = "*"
 compel = "*"
 Pillow = "*"
 xformers = "*"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
