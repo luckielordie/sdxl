@@ -5,7 +5,7 @@ import os
 import time
 
 from utils import Resolution, calculate_generation_dims, guidance_type, GUIDANCE_PRESETS
-from generator import setup_pipelines, generate
+from generator import setup_pipelines, generate, generate_from_image
 
 def main():
     parser = argparse.ArgumentParser(
@@ -28,6 +28,9 @@ def main():
         help=f"Guidance scale. Float or preset: {', '.join(GUIDANCE_PRESETS.keys())}"
     )
     parser.add_argument("--seed", type=int, default=-1, help="Initial seed. -1 for random.")
+    parser.add_argument("--mode", type=str, default="text2img", choices=["text2img", "img2img"], help="Generation mode.")
+    parser.add_argument("--image_path", type=str, default=None, help="Path to the source image for Img2Img.")
+    parser.add_argument("--strength", type=float, default=0.8, help="Strength for Img2Img generation.")
     
     # Image Dimension Settings
     parser.add_argument("--width", type=int, default=1920, help="Final width of the output image.")
@@ -40,6 +43,9 @@ def main():
     )
 
     args = parser.parse_args()
+
+    if args.mode == "img2img" and not args.image_path:
+        parser.error("--image_path is required for img2img mode.")
 
     BASE_OUTPUT_DIR = "generated_images"
     if not args.output_dir:
@@ -57,19 +63,36 @@ def main():
         args.model_id, torch_dtype
     )
 
-    generate(
-        base_pipeline=base_pipeline,
-        refiner_pipeline=refiner_pipeline,
-        compel=compel,
-        prompt=args.prompt,
-        negative_prompt=args.negative_prompt,
-        num_images=args.num_images,
-        guidance_scale=args.guidance,
-        initial_seed=initial_seed,
-        gen_resolution=gen_res,
-        final_resolution=final_res,
-        output_dir=args.output_dir
-    )
+    if args.mode == "text2img":
+        generate(
+            base_pipeline=base_pipeline,
+            refiner_pipeline=refiner_pipeline,
+            compel=compel,
+            prompt=args.prompt,
+            negative_prompt=args.negative_prompt,
+            num_images=args.num_images,
+            guidance_scale=args.guidance,
+            initial_seed=initial_seed,
+            gen_resolution=gen_res,
+            final_resolution=final_res,
+            output_dir=args.output_dir
+        )
+    elif args.mode == "img2img":
+        generate_from_image(
+            base_pipeline=base_pipeline,
+            refiner_pipeline=refiner_pipeline,
+            compel=compel,
+            prompt=args.prompt,
+            negative_prompt=args.negative_prompt,
+            num_images=args.num_images,
+            guidance_scale=args.guidance,
+            initial_seed=initial_seed,
+            gen_resolution=gen_res,
+            final_resolution=final_res,
+            output_dir=args.output_dir,
+            image_path=args.image_path,
+            strength=args.strength
+        )
 
 if __name__ == "__main__":
     main()

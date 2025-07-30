@@ -4,7 +4,7 @@ from compel import Compel, ReturnedEmbeddingsType
 from PIL import Image
 import os
 import time
-from utils import Resolution
+from utils import Resolution, load_image
 
 def setup_pipelines(
     model_id: str,
@@ -85,6 +85,63 @@ def generate(
                 negative_pooled_prompt_embeds=negative_pooled_prompt_embeds,
                 guidance_scale=guidance_scale, num_inference_steps=30, strength=0.25,
                 image=base_image_latents, generator=generator
+            ).images[0]
+
+        final_res_tuple = (final_resolution.width, final_resolution.height)
+        print(f"💾 Resizing to final dimensions and saving: {final_res_tuple[0]}x{final_res_tuple[1]}...")
+        
+        final_image = refined_image.resize(final_res_tuple, Image.LANCZOS)
+        
+        timestamp = int(time.time())
+        output_path = os.path.join(output_dir, f"image_{timestamp}_seed_{current_seed}.png")
+        final_image.save(output_path)
+        print(f"✅ Image saved to {output_path}")
+
+    print(f"\n🎉 All {num_images} images generated successfully!")
+
+def generate_from_image(
+    base_pipeline: StableDiffusionXLPipeline,
+    refiner_pipeline: StableDiffusionXLImg2ImgPipeline,
+    compel: Compel,
+    prompt: str,
+    negative_prompt: str,
+    num_images: int,
+    guidance_scale: float,
+    gen_resolution: Resolution,
+    final_resolution: Resolution,
+    initial_seed: int,
+    output_dir: str,
+    image_path: str,
+    strength: float
+):
+    """Generates images from a source image with manual pipeline management for memory efficiency."""
+    os.makedirs(output_dir, exist_ok=True)
+    
+    print(f"ℹ️  Using Guidance Scale: {guidance_scale}")
+    print(f"💪 Using Strength: {strength}")
+    print("▶️  Processing and embedding prompts for SDXL...")
+    prompt_embeds, pooled_prompt_embeds = compel(prompt)
+    negative_prompt_embeds, negative_pooled_prompt_embeds = compel(negative_prompt)
+
+    print(f"🌱 Using initial seed: {initial_seed}")
+
+    source_image = load_image(image_path).resize((gen_resolution.width, gen_resolution.height))
+
+    for i in range(num_images):
+        print(f"\n--- 📸 Generating image {i + 1} of {num_images} ---")
+        current_seed = initial_seed + i
+        generator = torch.manual_seed(current_seed)
+        print(f"🌱 Using seed for this image: {current_seed}")
+
+        with torch.inference_mode():
+            print(f"🎨 Generating new image from source {gen_resolution.width}x{gen_resolution.height}...")
+            refined_image = refiner_pipeline(
+                prompt_embeds=prompt_embeds,
+                pooled_prompt_embeds=pooled_prompt_embeds,
+                negative_prompt_embeds=negative_prompt_embeds,
+                negative_pooled_prompt_embeds=negative_pooled_prompt_embeds,
+                guidance_scale=guidance_scale, num_inference_steps=30, strength=strength,
+                image=source_image, generator=generator
             ).images[0]
 
         final_res_tuple = (final_resolution.width, final_resolution.height)

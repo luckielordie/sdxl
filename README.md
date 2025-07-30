@@ -4,6 +4,7 @@ This is a powerful and user-friendly command-line tool for generating high-quali
 
 ## Features
 
+- **Text-to-Image and Image-to-Image**: Supports both standard text-to-image generation and image-to-image transformation.
 - **High-Quality Generation**: Utilizes the base SDXL model, a latent upscaler, and a refiner for detailed, high-resolution images.
 - **Integrated AI Upscaling**: Uses `stabilityai/sd-x2-latent-upscaler` to intelligently increase image resolution and detail.
 - **Intelligent Memory Management**: Automatically detects your system's VRAM and selects the best operational mode. On high-VRAM systems, it loads all models to the GPU for maximum speed. on low-VRAM systems, it uses CPU offloading to ensure the script can run without crashing.
@@ -30,13 +31,25 @@ This project is managed with [Poetry](https://python-poetry.org/).
 
 All commands are run from your terminal in the project's root directory. The main entry point is `main.py`. The only required argument is `--prompt`.
 
-### Basic Example
+### Basic Example (Text-to-Image)
 
 This command will run the full pipeline in the most memory-efficient way.
 
 ```bash
-python main.py --prompt "a dramatic photo of a majestic lion in the savanna, cinematic lighting, 8k"
-````
+poetry run python main.py --prompt "a dramatic photo of a majestic lion in the savanna, cinematic lighting, 8k"
+```
+
+### Image-to-Image Example
+
+Transform an existing image. The `--strength` parameter controls how much the original image is changed.
+
+```bash
+poetry run python main.py \
+    --mode img2img \
+    --image_path "path/to/your/image.png" \
+    --prompt "a vibrant, futuristic city in the style of vaporwave" \
+    --strength 0.6
+```
 
 ### Command-Line Arguments
 
@@ -44,6 +57,9 @@ python main.py --prompt "a dramatic photo of a majestic lion in the savanna, cin
 | --- | --- | --- | --- |
 | `--prompt` | `string` | **(Required)** | The positive prompt describing the image you want. |
 | `--negative_prompt` | `string` | `""` | The negative prompt, describing what to avoid. |
+| `--mode` | `string` | `text2img` | Generation mode: `text2img` or `img2img`. |
+| `--image_path` | `string` | `None` | Path to the source image for Img2Img mode. |
+| `--strength` | `float` | `0.8` | For Img2Img, how much to transform the source image (0.0 to 1.0). |
 | `--model_id` | `string` | `stabilityai/stable-diffusion-xl-base-1.0`| The Hugging Face model ID for the base SDXL model. |
 | `--memory_mode` | `string` | `auto` | Memory mode: `auto`, `high` (VRAM-only), `low` (CPU offload). |
 | `--guidance` | `preset/float` | `medium` | Prompt adherence. Can be a float (`8.2`) or a preset: `artistic`, `low`, `medium`, `high`, `strict`. |
@@ -59,7 +75,7 @@ python main.py --prompt "a dramatic photo of a majestic lion in the savanna, cin
 **1. Generate a portrait for a phone screen:**
 
 ```bash
-python main.py \
+poetry run python main.py \
     --prompt "full body portrait of a sci-fi queen on a throne, intricate armor, cinematic" \
     --negative_prompt "blurry, ugly, deformed, cartoon" \
     --width 1080 \
@@ -74,7 +90,7 @@ python main.py \
 This is for machines with plenty of VRAM (e.g., >12GB).
 
 ```bash
-python main.py \
+poetry run python main.py \
     --prompt "a cozy cabin in a winter forest at night, stars visible, glowing windows" \
     --num_images 5 \
     --seed 42 \

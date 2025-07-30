@@ -1,6 +1,7 @@
 import math
 import argparse
 from dataclasses import dataclass
+from PIL import Image
 
 @dataclass(frozen=True)
 class Resolution:
@@ -51,4 +52,17 @@ def calculate_generation_dims(
     print(f"🤖 Calculated generation dimensions (closest to {target_area/1e6:.2f}MP): {calculated_res.width}x{calculated_res.height}")
     
     return calculated_res
+
+def load_image(image_path: str) -> Image.Image:
+    """Loads an image from the given path and converts it to RGB."""
+    try:
+        image = Image.open(image_path).convert("RGB")
+        print(f"🖼️  Successfully loaded source image from: {image_path}")
+        return image
+    except FileNotFoundError:
+        print(f"❌ Error: Source image not found at {image_path}")
+        raise
+    except Exception as e:
+        print(f"❌ Error loading image: {e}")
+        raise
 
