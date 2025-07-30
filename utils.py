@@ -1,7 +1,6 @@
 import math
 import argparse
 from dataclasses import dataclass
-import re
 
 @dataclass(frozen=True)
 class Resolution:
@@ -19,9 +18,9 @@ GUIDANCE_PRESETS = {
 
 def guidance_type(value: str) -> float:
     """Custom type for argparse to handle both preset strings and float values."""
-    lower_value = value.lower()
-    if lower_value in GUIDANCE_PRESETS:
-        return GUIDANCE_PRESETS[lower_value]
+    preset = GUIDANCE_PRESETS.get(value.lower())
+    if preset is not None:
+        return preset
     try:
         return float(value)
     except ValueError:
@@ -53,21 +52,3 @@ def calculate_generation_dims(
     
     return calculated_res
 
-def clean_compel_syntax(prompt: str) -> str:
-    """
-    Removes or simplifies Compel-specific syntax from a prompt string
-    to make it compatible with standard pipelines.
-    """
-    # Handle [from:to:when] syntax by taking the 'to' part.
-    prompt = re.sub(r"\[[^\]:]*:([^\]:]*):[^\]]*\]", r"\1", prompt)
-
-    # Handle (word:weight) syntax by just taking the word.
-    prompt = re.sub(r"\(([^:\)]+):[0-9.]+\)", r"\1", prompt)
-
-    # Remove all remaining weighting symbols like (), +, -
-    prompt = re.sub(r"[\(\)\+\-]+", " ", prompt)
-
-    # Finally, clean up any extra whitespace.
-    prompt = re.sub(r" +", " ", prompt).strip()
-
-    return prompt

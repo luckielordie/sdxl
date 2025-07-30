@@ -9,7 +9,7 @@ from utils import Resolution
 def setup_pipelines(
     model_id: str,
     torch_dtype: torch.dtype,
-) -> tuple[StableDiffusionXLPipeline, StableDiffusionXLImg2ImgPipeline, Compel, str]:
+) -> tuple[StableDiffusionXLPipeline, StableDiffusionXLImg2ImgPipeline, Compel]:
     """Sets up pipelines for manual VRAM management."""    
     if torch_dtype == torch.float32:
         torch.set_float32_matmul_precision('high')
@@ -52,18 +52,10 @@ def generate(
     """Generates images with manual pipeline management for memory efficiency."""
     os.makedirs(output_dir, exist_ok=True)
     
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
     print(f"ℹ️  Using Guidance Scale: {guidance_scale}")
     print("▶️  Processing and embedding prompts for SDXL...")
     prompt_embeds, pooled_prompt_embeds = compel(prompt)
     negative_prompt_embeds, negative_pooled_prompt_embeds = compel(negative_prompt)
-
-    # Move embeddings to the target device
-    prompt_embeds = prompt_embeds.to(device)
-    pooled_prompt_embeds = pooled_prompt_embeds.to(device)
-    negative_prompt_embeds = negative_prompt_embeds.to(device)
-    negative_pooled_prompt_embeds = negative_pooled_prompt_embeds.to(device)
 
     print(f"🌱 Using initial seed: {initial_seed}")
 

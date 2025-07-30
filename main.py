@@ -15,7 +15,7 @@ def main():
 
     # Hardware & Model Settings
     parser.add_argument("--model_id", type=str, default="stabilityai/stable-diffusion-xl-base-1.0", help="Hugging Face model ID.")
-    parser.add_argument("--dtype", type=str, default="float16", help="Torch dtype ('float16' or 'float32').")
+    parser.add_argument("--dtype", default="float16", help="Torch dtype ('float16' or 'float32').")
 
     # Prompt Settings
     parser.add_argument("--prompt", type=str, required=True, help="Positive prompt.")
@@ -42,13 +42,10 @@ def main():
     args = parser.parse_args()
 
     BASE_OUTPUT_DIR = "generated_images"
-    if args.output_dir:
-        final_output_dir = os.path.join(BASE_OUTPUT_DIR, args.output_dir)
-    else:
-        timestamp = int(time.time())
-        final_output_dir = os.path.join(BASE_OUTPUT_DIR, f"run_{timestamp}")
+    if not args.output_dir:
+        args.output_dir = os.path.join(BASE_OUTPUT_DIR, f"run_{int(time.time())}")
     
-    print(f"💾 Output will be saved to: {final_output_dir}")
+    print(f"💾 Output will be saved to: {args.output_dir}")
 
     final_res = Resolution(width=args.width, height=args.height)
     gen_res = calculate_generation_dims(final_res)
@@ -71,7 +68,7 @@ def main():
         initial_seed=initial_seed,
         gen_resolution=gen_res,
         final_resolution=final_res,
-        output_dir=final_output_dir
+        output_dir=args.output_dir
     )
 
 if __name__ == "__main__":
