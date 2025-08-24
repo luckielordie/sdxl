@@ -59,7 +59,7 @@ python main.py --prompt "a dramatic photo of a majestic lion in the savanna, cin
 **1. Generate a portrait for a phone screen:**
 
 ```bash
-python main.py \
+poetry run python main.py \
     --prompt "full body portrait of a sci-fi queen on a throne, intricate armor, cinematic" \
     --negative_prompt "blurry, ugly, deformed, cartoon" \
     --width 1080 \
@@ -74,7 +74,7 @@ python main.py \
 This is for machines with plenty of VRAM (e.g., >12GB).
 
 ```bash
-python main.py \
+poetry run python main.py \
     --prompt "a cozy cabin in a winter forest at night, stars visible, glowing windows" \
     --num_images 5 \
     --seed 42 \
